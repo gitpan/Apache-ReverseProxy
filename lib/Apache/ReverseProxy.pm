@@ -13,7 +13,7 @@ use LWP;
 use CGI;
 use Symbol 'gensym';
 use vars qw($VERSION);
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 sub handler {
 
@@ -170,7 +170,7 @@ sub handler {
 
     $r->status_line($response->code() . ' ' . $response->message());
 
-    $response->scan(sub { $r->header_out(@_); });
+    $response->scan(sub { $r->headers_out->add(@_); });
     $r->send_http_header();
     print $response->content();
     return OK;

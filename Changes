@@ -1,5 +1,10 @@
 Revision history for Perl extension Apache::ReverseProxy
 
+0.04 Wed Nov 17 15:57:23 PST 1999
+	- Forwards multiple headers with the same header name
+	  back to the client, often used by Set-cookie when
+	  setting multiple cookies in one HTTP response.
+
 0.03 Fri Nov  5 15:34:01 PST 1999
 	- Forwards the client's user-agent, content-type, and
 	  entity body.
