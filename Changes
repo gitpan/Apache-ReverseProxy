@@ -1,5 +1,11 @@
 Revision history for Perl extension Apache::ReverseProxy
 
+0.06 Thu Mar  8 02:38:12 PST 2001
+	- Applied patch from Ward Vandewege <ward@pong.be> to
+	  fix a hanging problem that occurs with HTML forms
+	  that have a user defined encoding type.
+	  (example: enctype="multipart/form-data")
+
 0.05 Thu Jan 20 18:20:27 PST 2000
 	- Added patch from David Jao <djao@sc-24018.fas.harvard.edu>
 	  to allow the proxy to return chunks of the entity-body as it

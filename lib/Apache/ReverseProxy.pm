@@ -163,6 +163,12 @@ sub handler {
     my $entity_body = $r->content();
     if (defined $entity_body && length $entity_body) {
       $request->content($entity_body);
+    } else {
+        my $buff = '';
+        $r->read($buff, $r->header_in('Content-length'));
+        if ($buff ne '') {
+            $request->content($buff);
+        }
     }
 
     # Okay now for the fireworks. We use a custom subroutine to send an
