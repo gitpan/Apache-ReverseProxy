@@ -1,5 +1,11 @@
 Revision history for Perl extension Apache::ReverseProxy
 
+0.05 Thu Jan 20 18:20:27 PST 2000
+	- Added patch from David Jao <djao@sc-24018.fas.harvard.edu>
+	  to allow the proxy to return chunks of the entity-body as it
+	  receives data from the web server, instead of retrieving the
+	  entire entity-body and then returning it to the client.
+
 0.04 Wed Nov 17 15:57:23 PST 1999
 	- Forwards multiple headers with the same header name
 	  back to the client, often used by Set-cookie when

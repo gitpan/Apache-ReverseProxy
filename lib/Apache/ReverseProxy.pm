@@ -1,6 +1,7 @@
 package Apache::ReverseProxy;
 
-# Copyright (c) 1999 Clinton Wong. All rights reserved.
+# Copyright (c) 1999 Clinton Wong. Additional modifications Copyright
+# (c) 2000 David Jao. All rights reserved.
 # This program is free software; you can redistribute it
 # and/or modify it under the same terms as Perl itself.
 
@@ -13,7 +14,7 @@ use LWP;
 use CGI;
 use Symbol 'gensym';
 use vars qw($VERSION);
-$VERSION = '0.04';
+$VERSION = '0.05';
 
 sub handler {
 
@@ -164,15 +165,41 @@ sub handler {
       $request->content($entity_body);
     }
 
-    my $response = $ua->request($request);
-    $r->content_type($response->header('Content-type'));
-    $r->status($response->code());
+    # Okay now for the fireworks. We use a custom subroutine to send an
+    # http header and then display the content in chunks of 4096 bytes.
+    # In this way we avoid reading the entire request into core and forcing
+    # the web browser to wait for the entire file to be downloaded before
+    # receiving any data.
+    my $first_time=1;
+    my $response = $ua->request($request, sub {
+      my($data, $response, $protocol) = @_;
+      if ($first_time == 1) {
+        $r->content_type($response->header('Content-type'));
+        $r->status($response->code());
 
-    $r->status_line($response->code() . ' ' . $response->message());
+        $r->status_line($response->code() . ' ' .  $response->message());
 
-    $response->scan(sub { $r->headers_out->add(@_); });
-    $r->send_http_header();
-    print $response->content();
+        $response->scan(sub { $r->headers_out->add(@_); });
+        $r->send_http_header();
+        $first_time=0;
+      }
+      print "$data";
+    }
+, 4096);
+    # If the custom subroutine above did not get called, that means our
+    # http request must have failed (c.f. LWP::UserAgent documentation).
+    # We handle that case here.
+    if ($first_time == 1) {
+      $r->content_type($response->header('Content-type'));
+      $r->status($response->code());
+
+      $r->status_line($response->code() . ' ' . $response->message());
+
+      $response->scan(sub { $r->headers_out->add(@_); });
+      $r->send_http_header();
+      $first_time=0;
+      print $response->content();
+    }
     return OK;
 
   }  # if uri changed
@@ -269,7 +296,8 @@ which start with a pound sign.  For example:
 
 =head1 COPYRIGHT
 
- Copyright (c) 1999 Clinton Wong. All rights reserved.
+ Copyright (c) 1999 Clinton Wong. Additional modifications copyright
+ (c) 2000 David Jao. All rights reserved.
  This program is free software; you can redistribute it
  and/or modify it under the same terms as Perl itself.
 
