@@ -1,0 +1,5 @@
+Revision history for Perl extension Apache::ReverseProxy
+
+0.01 Wed Oct 27 02:34:52 PDT 1999
+	- original version; created by h2xs 1.16
+
