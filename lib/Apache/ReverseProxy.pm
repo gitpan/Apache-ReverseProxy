@@ -1,7 +1,10 @@
 package Apache::ReverseProxy;
 
-# Copyright (c) 1999 Clinton Wong. Additional modifications Copyright
-# (c) 2000 David Jao. All rights reserved.
+# Copyright (c) 1999-2005 Clinton Wong.
+# Additional modifications Copyright (c) 2000 David Jao.
+# Additional modifications Copyright (c) 2005 Penny Leach.
+# All rights reserved.
+
 # This program is free software; you can redistribute it
 # and/or modify it under the same terms as Perl itself.
 
@@ -14,7 +17,7 @@ use LWP;
 use CGI;
 use Symbol 'gensym';
 use vars qw($VERSION);
-$VERSION = '0.05';
+$VERSION = '0.07';
 
 sub handler {
 
@@ -139,7 +142,11 @@ sub handler {
       $request->header($_, $headers{$_});
     }
  
-    my $ua = new LWP::UserAgent();
+    my $host = $uri;
+    $host =~ s/([a-zA-z]*:\/\/)([a-zA-Z0-9.-]*)([:0-9]*)\/.*/$2/;
+    $request->header('Host', $host);
+    my $ua = new LWP::UserAgent('max_redirect' => 0);
+
     if (defined $chain) {
       $ua->proxy(['http', 'https', 'ftp', 'gopher'], $chain);
       if (defined $noproxy) { $ua->noproxy($noproxy) }
@@ -298,15 +305,18 @@ which start with a pound sign.  For example:
 
 =head1 AUTHOR
 
- Clinton Wong, clintdw@netcom.com
+ Clinton Wong, http://search.cpan.org/~clintdw/
 
 =head1 COPYRIGHT
 
- Copyright (c) 1999 Clinton Wong. Additional modifications copyright
- (c) 2000 David Jao. All rights reserved.
+ Copyright (c) 1999-2005 Clinton Wong.
+ Additional modifications Copyright (c) 2000 David Jao.
+ Additional modifications Copyright (c) 2005 Penny Leach.
+ All rights reserved.
+ 
  This program is free software; you can redistribute it
  and/or modify it under the same terms as Perl itself.
-
+ 
  This module is based on Apache::ProxyPass, by Michael
  Smith <mjs@iii.co.uk>, which is based on Apache::ProxyPassThru.
 
