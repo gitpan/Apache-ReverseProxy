@@ -13,7 +13,7 @@ use LWP;
 use CGI;
 use Symbol 'gensym';
 use vars qw($VERSION);
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 sub handler {
 
@@ -30,6 +30,9 @@ sub handler {
     return DECLINED;
   }
 
+  my $chain = $r->dir_config('ReverseProxyChain');
+  my $noproxy = $r->dir_config('ReverseProxyNoChain');
+
   # read config file
   my $f = gensym();
   if (! open($f, $conf) )  {
@@ -44,23 +47,41 @@ sub handler {
     
     if ($line =~ /^([^\s]+)\s+([^\s]+)(\s+([^\s]+)){0,1}/) {
       my $from = $1; my $to=$2; my $options = $3 || '';
+
+      # do URL mappings
       if ($options =~ /exact/i) { $exact{$from} = $to }
       else { $regex{$from} = $to }
       if ($options =~ /cookietrans/i) { $cookie_trans{$from} = 1 }
       if ($options =~ /noquerykeyreplace/i) { $no_query_replace{$from} = 1 }
+
     } # if valid line
   } # while config file input
   close($f);
 
   my $uri = $r->uri();
 
-  # try an exact match first
-  if ( defined $exact{$uri} ) { $uri = $exact{$uri} }
+  my $uri_with_qs = $uri;
+  my $query = $r->args() || '';   # from the user's request
+  if (length $query) { $uri_with_qs .= '?' . $query }
+  
+  my $changed=0;
+
+
+  if ( defined $exact{$uri} ) {			# try an exact uri match first
+    $uri = $exact{$uri};
+    $changed=1;
+  }
+  elsif ( defined $exact{$uri_with_qs} ) {	# try exact uri with qs 
+    $uri = $exact{$uri_with_qs};
+    $changed=1;
+  }
   else {
 
     # otherwise, try regular expression matching
     foreach my $key (keys(%regex)) {
       if ($uri =~ /^$key/) {
+
+	$changed=1;
 
         # replace URI's first, then append query string
         my $replace_uri = $regex{$key};
@@ -68,14 +89,15 @@ sub handler {
         if ($replace_uri =~ s/\?(.*)$//) { $replace_query = $1 }
 
         $uri =~ s/$key/${replace_uri}/;
-        $uri .= '?' . $replace_query;
+	if (length $replace_query) { $uri .= '?' . $replace_query }
         last;
       }
     } # for each regex match...
 
   } # regex matching
 
-  if ($uri ne $r->uri()) {
+
+  if ($changed) {
 
     # strip out possible query string from re-written uri, store it
     my $munged_uri = $uri;
@@ -116,6 +138,12 @@ sub handler {
       $request->header($_, $headers{$_});
     }
  
+    my $ua = new LWP::UserAgent();
+    if (defined $chain) {
+      $ua->proxy(['http', 'https', 'ftp', 'gopher'], $chain);
+      if (defined $noproxy) { $ua->noproxy($noproxy) }
+    }
+    
     my $response = (new LWP::UserAgent)->request($request);
     $r->content_type($response->header('Content-type'));
     $r->status($response->code());
@@ -157,9 +185,9 @@ Apache::ReverseProxy - An Apache mod_perl reverse proxy
 This is a reverse proxy module for Apache with mod_perl.  It is intended
 to replace Apache::ProxyPass.  Given a list of URI mappings,
 this module will translate an incoming URI, retrieve the contents for
-the URI, and return the contents to the original requestor.  This module
-allows you to specify exact matching (instead of regular expression
-matching) and handles query string translations.
+the translated URI, and return the contents to the original requestor.
+This module allows you to specify exact matching (instead of regular
+expression matching) and handles query string translations.
 
 =head1 CONFIGURATION
 
@@ -170,7 +198,17 @@ to the path of the reverse proxy mapping file.  For example:
  SetHandler perl-script
  PerlHandler Apache::ReverseProxy
  PerlSetVar ReverseProxyConfig /usr/local/apache/conf/rproxy.conf
+
+ # Optional configuration items:
+ #PerlSetVar ReverseProxyChain http://proxy.mycompany.com:8888/
+ #PerlSetVar ReverseProxyNoChain mycompany.com
  </Location>
+
+B<ReverseProxyChain> specifies a proxy server to use.  This is 
+sometimes called I<proxy chaining> when one proxy server uses
+another proxy server.  The B<ReverseProxyNoChain> directive can specify
+a domain to not use proxy chaining on.
+
 
 Reverse proxy configuration files have three fields, each separated by
 white space.  The first field is the uri to look for, the second
@@ -197,11 +235,8 @@ which start with a pound sign.  For example:
 
 =head1 TO-DO
 
-  1. Configuration directive to not replace overlapping query string keys.  
-  2. Cookie header translation.
-  3. Location header translation.
-  4. Use Apache authentication files.
-  5. Verbose/debug logging.
+  1. Cookie header translation.
+  2. Verbose/debug logging.
 
 =head1 REQUIREMENTS
 
