@@ -13,7 +13,7 @@ use LWP;
 use CGI;
 use Symbol 'gensym';
 use vars qw($VERSION);
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 sub handler {
 
@@ -144,7 +144,27 @@ sub handler {
       if (defined $noproxy) { $ua->noproxy($noproxy) }
     }
     
-    my $response = (new LWP::UserAgent)->request($request);
+    # copy over the client's user-agent, since some servers look at
+    # this and customize their response based on it.
+
+    my $origin_ua = $r->header_in('user-agent');
+    if (defined $origin_ua && length $origin_ua) {
+      $ua->agent($origin_ua)
+    }
+
+    # copy over the content type
+    my $content_type = $r->header_in('content-type');
+    if (defined $content_type && length $content_type) {
+      $request->header('content-type', $content_type);
+    }
+
+    # copy over the entity body as well
+    my $entity_body = $r->content();
+    if (defined $entity_body && length $entity_body) {
+      $request->content($entity_body);
+    }
+
+    my $response = $ua->request($request);
     $r->content_type($response->header('Content-type'));
     $r->status($response->code());
 
